@@ -1548,6 +1548,11 @@ function __PACKAGE_USERDATA() {
 
 function __PACKAGE_ROOTFS() {
 	local rootfs_tarball rootfs_out_dir
+	if [ ! -z $RK_CUSTOM_ROOTFS ]; then
+		mkdir -p $RK_PROJECT_PACKAGE_ROOTFS_DIR
+		tar xf $RK_CUSTOM_ROOTFS -C $RK_PROJECT_PACKAGE_ROOTFS_DIR
+		return
+	fi
 	rootfs_tarball="$RK_PROJECT_PATH_SYSDRV/rootfs_${RK_LIBC_TPYE}_${RK_CHIP}.tar"
 
 	if [ ! -f $rootfs_tarball ]; then
