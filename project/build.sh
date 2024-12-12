@@ -1551,8 +1551,6 @@ function __PACKAGE_ROOTFS() {
 	if [ ! -z $RK_CUSTOM_ROOTFS ]; then
 		mkdir -p $RK_PROJECT_PACKAGE_ROOTFS_DIR
 		tar xf $RK_CUSTOM_ROOTFS -C $RK_PROJECT_PACKAGE_ROOTFS_DIR
-  		echo "ARH DEBUG: ls -la $RK_PROJECT_PACKAGE_ROOTFS_DIR"
-  		ls -la $RK_PROJECT_PACKAGE_ROOTFS_DIR
 		return
 	fi
 	rootfs_tarball="$RK_PROJECT_PATH_SYSDRV/rootfs_${RK_LIBC_TPYE}_${RK_CHIP}.tar"
@@ -2542,6 +2540,7 @@ function post_overlay() {
 
 	for overlay_dir in $RK_POST_OVERLAY; do
 		if [ -d "$tmp_path/overlay/$overlay_dir" ]; then
+  			chown -R 0:0 "$tmp_path/overlay/$overlay_dir"
 			rsync -a --ignore-times --keep-dirlinks --chmod=u=rwX,go=rX --exclude .empty \
 				$tmp_path/overlay/$overlay_dir/* $RK_PROJECT_PACKAGE_ROOTFS_DIR/
 		fi
