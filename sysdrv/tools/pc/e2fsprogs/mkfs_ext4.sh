@@ -38,6 +38,9 @@ fi
 
 mkdir -p $(dirname $dst)
 
+echo "ARH DEBUG: ls -la $src"
+ls -la $src
+
 echo mkfs.ext4 -d $src -r 1 -N 0 -m 5 -L \"\" -O ^64bit,^huge_file $dst \"$dst_size\"
 mkfs.ext4 -d $src -r 1 -N 0 -m 5 -L "" -O ^64bit,^huge_file $dst "$dst_size"
 if [ $? != 0 ]; then
