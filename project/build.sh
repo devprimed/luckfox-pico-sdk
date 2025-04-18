@@ -157,7 +157,9 @@ function choose_target_board() {
 		"RV1106_Luckfox_Pico_Pro"
 		"RV1106_Luckfox_Pico_Max"
 		"RV1106_Luckfox_Pico_Ultra"
-		"RV1106_Luckfox_Pico_Ultra_W")
+		"RV1106_Luckfox_Pico_Ultra_W"
+		"RV1106_Luckfox_Pico_Pi"
+		"RV1106_Luckfox_Pico_Pi_W")
 	local LF_BOOT_MEDIA=("SD_CARD" "SPI_NAND" "EMMC")
 	local LF_SYSTEM=("Buildroot" "Ubuntu" "Custom")
 	local cnt=0 space8="        "
@@ -186,6 +188,10 @@ function choose_target_board() {
 	echo "${space8}${space8}[${LUNCH_NUM}] RV1106_Luckfox_Pico_Ultra"
 	LUNCH_NUM=$((LUNCH_NUM + 1))
 	echo "${space8}${space8}[${LUNCH_NUM}] RV1106_Luckfox_Pico_Ultra_W"
+	LUNCH_NUM=$((LUNCH_NUM + 1))
+	echo "${space8}${space8}[${LUNCH_NUM}] RV1106_Luckfox_Pico_Pi"
+	LUNCH_NUM=$((LUNCH_NUM + 1))
+	echo "${space8}${space8}[${LUNCH_NUM}] RV1106_Luckfox_Pico_Pi_W"
 	LUNCH_NUM=$((LUNCH_NUM + 1))
 	echo "${space8}${space8}[${LUNCH_NUM}] custom"
 
@@ -271,7 +277,7 @@ function choose_target_board() {
 
 	range_sd_card=(0 1)
 	range_sd_card_spi_nand=(2 3 4 5 6)
-	range_emmc=(7 8)
+	range_emmc=(7 8 9 10)
 
 	if __IS_IN_ARRAY "$HW_INDEX" "${range_sd_card[@]}"; then
 		echo "${space8}${space8}[0] SD_CARD"
@@ -312,12 +318,12 @@ function choose_target_board() {
 	echo -e "${C_GREEN} "${space8}选择系统版本:"${C_NORMAL}"
 
 	if (("$BM_INDEX" == 1)); then
-		echo "${space8}${space8}[0] Buildroot(Support Rockchip official features) "
+		echo "${space8}${space8}[0] Buildroot "
 		read -p "Which would you like? [0~1][default:0]: " SYS_INDEX
 		MAX_SYS_INDEX=0
 	elif (("$BM_INDEX" == 0)); then
-		echo "${space8}${space8}[0] Buildroot(Support Rockchip official features) "
-		echo "${space8}${space8}[1] Ubuntu(Support for the apt package management tool)"
+		echo "${space8}${space8}[0] Buildroot "
+		echo "${space8}${space8}[1] Ubuntu "
 		read -p "Which would you like? [0~1][default:0]: " SYS_INDEX
 		MAX_SYS_INDEX=1
 	fi
@@ -337,7 +343,7 @@ function choose_target_board() {
 	fi
 
 	# EMMC
-	if (("$HW_INDEX" >= range_emmc[0] && "$HW_INDEX" <= range_emmc[${#range_emmc[@]}-1])); then
+	if (("$HW_INDEX" >= range_emmc[0] && "$HW_INDEX" <= range_emmc[${#range_emmc[@]} - 1])); then
 		BM_INDEX=$BM_INDEX+2 #EMMC
 	fi
 
@@ -689,24 +695,6 @@ function build_uboot() {
 	echo "TARGET_UBOOT_CONFIG=$RK_UBOOT_DEFCONFIG $RK_UBOOT_DEFCONFIG_FRAGMENT"
 	echo "========================================="
 
-	#Apply patch
-	if [ ! -f ${SDK_SYSDRV_DIR}/source/.uboot_patch ]; then
-		echo "============Apply Uboot Patch============"
-		cd ${SDK_ROOT_DIR}
-		git apply ${SDK_SYSDRV_DIR}/tools/board/uboot/*.patch
-		if [ $? -eq 0 ]; then
-			msg_info "Patch applied successfully."
-			touch ${SDK_SYSDRV_DIR}/source/.uboot_patch
-		else
-			msg_error "Failed to apply the patch."
-			exit 1
-		fi
-	fi
-
-	cp ${SDK_SYSDRV_DIR}/tools/board/uboot/*_defconfig ${SDK_SYSDRV_DIR}/source/uboot/u-boot/configs
-	cp ${SDK_SYSDRV_DIR}/tools/board/uboot/*.dts ${SDK_SYSDRV_DIR}/source/uboot/u-boot/arch/arm/dts
-	cp ${SDK_SYSDRV_DIR}/tools/board/uboot/*.dtsi ${SDK_SYSDRV_DIR}/source/uboot/u-boot/arch/arm/dts
-
 	local uboot_rkbin_ini tempfile target_ini_dir
 	tempfile="$SDK_SYSDRV_DIR/source/uboot/rkbin/$RK_UBOOT_RKBIN_INI_OVERLAY"
 	if [ -f "$tempfile" ]; then
@@ -841,24 +829,6 @@ function build_sysdrv() {
 }
 
 function build_kernel() {
-	#Apply patch
-	if [ ! -f ${SDK_SYSDRV_DIR}/source/.kernel_patch ]; then
-		echo "============Apply Kernel Patch============"
-		cd ${SDK_ROOT_DIR}
-		git apply --verbose ${SDK_SYSDRV_DIR}/tools/board/kernel/*.patch
-		if [ $? -eq 0 ]; then
-			msg_info "Patch applied successfully."
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*_defconfig ${KERNEL_PATH}/arch/arm/configs/
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.config ${KERNEL_PATH}/arch/arm/configs/
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/kernel-drivers-video-logo_linux_clut224.ppm ${KERNEL_PATH}/drivers/video/logo/logo_linux_clut224.ppm
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.dts ${KERNEL_PATH}/arch/arm/boot/dts
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.dtsi ${KERNEL_PATH}/arch/arm/boot/dts
-			touch ${SDK_SYSDRV_DIR}/source/.kernel_patch
-		else
-			msg_error "Failed to apply the patch."
-		fi
-	fi
-
 	check_config RK_KERNEL_DTS RK_KERNEL_DEFCONFIG || return 0
 
 	echo "============Start building kernel============"
@@ -1317,25 +1287,6 @@ function build_clean() {
 		;;
 	recovery)
 		make kernel_clean -C ${SDK_SYSDRV_DIR} SYSDRV_BUILD_RECOVERY=y
-		;;
-	patch)
-		cd ${SDK_ROOT_DIR}
-		make uboot_clean -C ${SDK_SYSDRV_DIR}
-		if [ -f ${SDK_SYSDRV_DIR}/source/.uboot_patch ]; then
-			git apply -R --verbose ${SDK_SYSDRV_DIR}/tools/board/uboot/*.patch
-			rm -rf ${SDK_SYSDRV_DIR}/source/uboot/u-boot/arch/arm/dts/*luckfox*
-			rm -rf ${SDK_SYSDRV_DIR}/source/uboot/u-boot/configs/*luckfox*
-			rm ${SDK_SYSDRV_DIR}/source/.uboot_patch
-		fi
-
-		make kernel_clean -C ${SDK_SYSDRV_DIR}
-		if [ -f ${SDK_SYSDRV_DIR}/source/.kernel_patch ]; then
-			git apply -R --verbose ${SDK_SYSDRV_DIR}/tools/board/kernel/*.patch
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/logo_linux_clut224.ppm ${SDK_SYSDRV_DIR}/source/kernel/drivers/video/logo/logo_linux_clut224.ppm
-			rm -rf ${SDK_SYSDRV_DIR}/source/kernel/arch/arm/configs/*luckfox*
-			rm -rf ${SDK_SYSDRV_DIR}/source/kernel/arch/arm/boot/dts/*luckfox*
-			rm ${SDK_SYSDRV_DIR}/source/.kernel_patch
-		fi
 		;;
 	all)
 		make distclean -C ${SDK_SYSDRV_DIR}
@@ -2217,23 +2168,6 @@ __LINK_DEFCONFIG_FROM_BOARD_CFG() {
 		sudo chmod a+rw $SDK_CONFIG_DIR
 	fi
 
-	if [ ! -f ${SDK_SYSDRV_DIR}/source/.kernel_patch ]; then
-		echo "============Apply Kernel Patch============"
-		cd ${SDK_ROOT_DIR}
-		git apply ${SDK_SYSDRV_DIR}/tools/board/kernel/*.patch
-		if [ $? -eq 0 ]; then
-			msg_info "Patch applied successfully."
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*_defconfig ${KERNEL_PATH}/arch/arm/configs/
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.config ${KERNEL_PATH}/arch/arm/configs/
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/kernel-drivers-video-logo_linux_clut224.ppm ${KERNEL_PATH}/drivers/video/logo/logo_linux_clut224.ppm
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.dts ${KERNEL_PATH}/arch/arm/boot/dts
-			cp ${SDK_SYSDRV_DIR}/tools/board/kernel/*.dtsi ${KERNEL_PATH}/arch/arm/boot/dts
-			touch ${SDK_SYSDRV_DIR}/source/.kernel_patch
-		else
-			msg_error "Failed to apply the patch."
-		fi
-	fi
-
 	if [ -n "$RK_KERNEL_DTS" ]; then
 		rm -f $DTS_CONFIG
 		ln -rfs $SDK_SYSDRV_DIR/source/kernel/arch/arm/boot/dts/$RK_KERNEL_DTS $DTS_CONFIG
@@ -2300,7 +2234,9 @@ function build_mkimg() {
 	fs_type="\$${fs_type}"
 	fs_type=$(eval "echo ${fs_type}")
 
-	__RELEASE_FILESYSTEM_FILES $src
+	if [ "$LF_TARGET_ROOTFS" == "buildroot" ] || [ "$LF_TARGT_ROOTFS" == "busybox" ]; then
+		__RELEASE_FILESYSTEM_FILES $src
+	fi
 
 	msg_info "src=$src"
 	msg_info "dst=$dst"
